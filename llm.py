@@ -4,6 +4,15 @@ import anthropic
 _regulation_text = None
 
 
+def _get_api_key() -> str:
+    # Streamlit Cloud secrets 우선, 없으면 환경변수 사용
+    try:
+        import streamlit as st
+        return st.secrets.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
+    except Exception:
+        return os.environ.get("ANTHROPIC_API_KEY", "")
+
+
 def load_regulation() -> str:
     global _regulation_text
     if _regulation_text is None:
@@ -15,7 +24,7 @@ def load_regulation() -> str:
 
 def get_recommendation(approval_summary: str, department: str, background: str = "") -> str:
     regulation = load_regulation()
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=_get_api_key())
 
     prompt = f"""당신은 SK가스 전결규정 전문가입니다. 아래의 전결규정을 기반으로 품의 내용에 맞는 전결 조항과 결재선을 추천해 주세요.
 
