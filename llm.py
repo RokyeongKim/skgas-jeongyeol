@@ -16,6 +16,15 @@ def _get_api_key() -> str:
 def load_regulation() -> str:
     global _regulation_text
     if _regulation_text is None:
+        # 1순위: Streamlit Secrets (클라우드 배포 시)
+        try:
+            import streamlit as st
+            if "REGULATION_TEXT" in st.secrets:
+                _regulation_text = st.secrets["REGULATION_TEXT"]
+                return _regulation_text
+        except Exception:
+            pass
+        # 2순위: 로컬 파일 (PC 로컬 실행 시)
         reg_path = os.path.join(os.path.dirname(__file__), "docs", "전결규정.md")
         with open(reg_path, "r", encoding="utf-8") as f:
             _regulation_text = f.read()
