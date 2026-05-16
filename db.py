@@ -19,9 +19,21 @@ def init_db():
             approval_summary TEXT NOT NULL,
             adopted_article TEXT NOT NULL,
             approval_line TEXT NOT NULL,
-            embedding TEXT
+            embedding TEXT,
+            is_custom INTEGER DEFAULT 0,
+            deviation_reason TEXT DEFAULT '',
+            consulted_with TEXT DEFAULT ''
         )
     """)
+    # 기존 DB 마이그레이션 (컬럼 없을 경우에만 추가)
+    existing = {row[1] for row in c.execute("PRAGMA table_info(cases)").fetchall()}
+    for col, definition in [
+        ("is_custom", "INTEGER DEFAULT 0"),
+        ("deviation_reason", "TEXT DEFAULT ''"),
+        ("consulted_with", "TEXT DEFAULT ''"),
+    ]:
+        if col not in existing:
+            c.execute(f"ALTER TABLE cases ADD COLUMN {col} {definition}")
     c.execute("""
         CREATE TABLE IF NOT EXISTS reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,16 +48,19 @@ def init_db():
     conn.close()
 
 
-def save_case(user_name, department, approval_summary, adopted_article, approval_line, embedding=None):
+def save_case(user_name, department, approval_summary, adopted_article, approval_line,
+              embedding=None, is_custom=0, deviation_reason="", consulted_with=""):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        INSERT INTO cases (timestamp, user_name, department, approval_summary, adopted_article, approval_line, embedding)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO cases (timestamp, user_name, department, approval_summary, adopted_article,
+                           approval_line, embedding, is_custom, deviation_reason, consulted_with)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         datetime.now().strftime("%Y-%m-%d %H:%M"),
         user_name, department, approval_summary, adopted_article, approval_line,
-        json.dumps(embedding) if embedding else None
+        json.dumps(embedding) if embedding else None,
+        is_custom, deviation_reason, consulted_with,
     ))
     conn.commit()
     conn.close()
@@ -55,7 +70,8 @@ def get_all_cases():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        SELECT id, timestamp, user_name, department, approval_summary, adopted_article, approval_line, embedding
+        SELECT id, timestamp, user_name, department, approval_summary, adopted_article,
+               approval_line, embedding, is_custom, deviation_reason, consulted_with
         FROM cases ORDER BY timestamp DESC
     """)
     rows = c.fetchall()

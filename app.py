@@ -53,25 +53,62 @@ def _render_confirm_section(user_name, department, approval_summary, article, li
     st.divider()
     st.markdown("**💾 추천 결과를 사례 DB에 저장하시겠습니까?**")
 
-    if article and line:
-        st.info(f"📌 **조항:** {article}  \n🔗 **결재선:** {line}")
-        confirm = st.checkbox("추천 결과 그대로 저장", value=True, key="confirm_check")
-    else:
+    if not article or not line:
         st.warning("조항/결재선 자동 파싱 실패 — 직접 입력해 주세요.")
-        confirm = False
         article = st.text_input("채택 조항", key="manual_article",
                                 placeholder="예) 첨부4 1.4.1 구매계약체결")
         line    = st.text_input("결재선",   key="manual_line",
                                 placeholder="예) 팀장 → 본부장 → 대표이사")
+        save_mode = "추천대로 저장"
+    else:
+        st.info(f"📌 **추천 조항:** {article}  \n🔗 **추천 결재선:** {line}")
+        save_mode = st.radio(
+            "저장 방식",
+            ["추천대로 저장", "다른 결재선 적용"],
+            horizontal=True,
+            key="save_mode_radio",
+        )
+
+    is_custom = 0
+    deviation_reason = ""
+    consulted_with = ""
+    final_article = article
+    final_line = line
+
+    if save_mode == "다른 결재선 적용":
+        is_custom = 1
+        st.markdown("**✏️ 실제 적용 내용 입력**")
+        final_article = st.text_input(
+            "실제 채택 조항", key="custom_article",
+            placeholder="예) 첨부4 1.4.1 구매계약체결",
+            value=article,
+        )
+        final_line = st.text_input(
+            "실제 결재선", key="custom_line",
+            placeholder="예) 팀장 → 본부장 → 대표이사",
+            value=line,
+        )
+        deviation_reason = st.text_area(
+            "변경 사유", key="deviation_reason",
+            placeholder="예) 계약 금액이 기준 초과하여 상위 전결권자로 조정",
+            height=80,
+        )
+        consulted_with = st.text_input(
+            "기획팀 협의자", key="consulted_with",
+            placeholder="예) 홍길동 팀장",
+        )
 
     if st.button("✅ 확정 & DB 저장", type="primary", use_container_width=True, key="save_btn"):
-        if not article or not line:
+        if not final_article or not final_line:
             st.warning("조항과 결재선을 확인해 주세요.")
-        elif not confirm and not (article and line):
-            st.warning("저장할 내용을 입력해 주세요.")
+        elif is_custom and not deviation_reason:
+            st.warning("다른 결재선 적용 시 변경 사유를 입력해 주세요.")
+        elif is_custom and not consulted_with:
+            st.warning("기획팀 협의자를 입력해 주세요.")
         else:
             emb = get_embedding(approval_summary)
-            save_case(user_name, department, approval_summary, article, line, emb)
+            save_case(user_name, department, approval_summary, final_article, final_line,
+                      emb, is_custom, deviation_reason, consulted_with)
             st.success("✅ 사례 DB에 저장됐습니다.")
 
 
@@ -194,13 +231,20 @@ with tab3:
         else:
             st.caption(f"총 {len(cases)}건")
             for case in cases:
-                c_id, ts, name, dept, summary, article, line, _ = case
-                with st.expander(f"[{ts}] {dept} · {summary[:40]}{'...' if len(summary)>40 else ''}"):
+                c_id, ts, name, dept, summary, article, line, _, is_custom, dev_reason, consulted = case
+                label = f"[{ts}] {dept} · {summary[:40]}{'...' if len(summary)>40 else ''}"
+                if is_custom:
+                    label += " ⚠️ 변경적용"
+                with st.expander(label):
                     st.write(f"**담당자:** {name}")
                     st.write(f"**부서:** {dept}")
                     st.write(f"**품의 요지:** {summary}")
                     st.write(f"**채택 조항:** {article}")
                     st.write(f"**결재선:** {line}")
+                    if is_custom:
+                        st.markdown("---")
+                        st.markdown(f"⚠️ **변경 사유:** {dev_reason}")
+                        st.markdown(f"👤 **기획팀 협의자:** {consulted}")
 
     with sub2:
         reports = get_all_reports()
