@@ -32,7 +32,7 @@ init_db()
 # ══════════════════════════════════════════════════════════════════════════════
 # DESIGN SYSTEM CSS
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
+st.html("""
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
@@ -285,10 +285,10 @@ div[data-testid="stSpinner"] p { color: #1f4ed8 !important; }
 /* Shortcut row */
 .kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border: 1px solid #e2e6ee; border-bottom-width: 2px; border-radius: 5px; font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 500; background: #fff; color: #7a849c; }
 </style>
-""", unsafe_allow_html=True)
+""")
 
 # ── Brand header ─────────────────────────────────────────────────────────────
-st.markdown("""
+st.html("""
 <div class="hf-nav">
   <div class="hf-brand">
     <div class="hf-logo">전</div>
@@ -298,7 +298,7 @@ st.markdown("""
     </span>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""")
 
 
 # ════════════════════════════════════════════════════════════════════════════
