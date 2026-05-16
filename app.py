@@ -4,6 +4,16 @@ from db import init_db, save_case, get_all_cases, save_report, get_all_reports, 
 from llm import get_recommendation
 from search import get_embedding, find_similar_cases
 
+
+def parse_recommendation(text: str) -> dict:
+    """Claude 답변에서 추천 조항과 결재선을 자동 추출"""
+    article = re.search(r"\*\*추천 전결 조항:\*\*\s*(.+)", text)
+    line    = re.search(r"\*\*결재선:\*\*\s*(.+)", text)
+    return {
+        "article": article.group(1).strip() if article else "",
+        "line":    line.group(1).strip()    if line    else "",
+    }
+
 st.set_page_config(
     page_title="SK가스 전결 도우미",
     page_icon="📋",
@@ -38,6 +48,32 @@ st.markdown("""
 
 st.title("📋 SK가스 전결 도우미")
 st.caption("전결규정 기준: 35차 개정 (2026.02.11) · 개발: Project 9")
+
+def _render_confirm_section(user_name, department, approval_summary, article, line):
+    st.divider()
+    st.markdown("**💾 추천 결과를 사례 DB에 저장하시겠습니까?**")
+
+    if article and line:
+        st.info(f"📌 **조항:** {article}  \n🔗 **결재선:** {line}")
+        confirm = st.checkbox("추천 결과 그대로 저장", value=True, key="confirm_check")
+    else:
+        st.warning("조항/결재선 자동 파싱 실패 — 직접 입력해 주세요.")
+        confirm = False
+        article = st.text_input("채택 조항", key="manual_article",
+                                placeholder="예) 첨부4 1.4.1 구매계약체결")
+        line    = st.text_input("결재선",   key="manual_line",
+                                placeholder="예) 팀장 → 본부장 → 대표이사")
+
+    if st.button("✅ 확정 & DB 저장", type="primary", use_container_width=True, key="save_btn"):
+        if not article or not line:
+            st.warning("조항과 결재선을 확인해 주세요.")
+        elif not confirm and not (article and line):
+            st.warning("저장할 내용을 입력해 주세요.")
+        else:
+            emb = get_embedding(approval_summary)
+            save_case(user_name, department, approval_summary, article, line, emb)
+            st.success("✅ 사례 DB에 저장됐습니다.")
+
 
 tab1, tab2, tab3 = st.tabs(["🔍 전결 조항 추천", "🚩 규정 공백 제보", "📂 사례 DB 조회"])
 
@@ -93,39 +129,29 @@ with tab1:
                         st.error(f"오류 발생: {e}")
                         st.stop()
 
+                parsed = parse_recommendation(result)
                 st.session_state["last_result"]   = result
                 st.session_state["last_summary"]  = approval_summary
                 st.session_state["last_dept"]     = department
                 st.session_state["last_user"]     = user_name
+                st.session_state["last_article"]  = parsed["article"]
+                st.session_state["last_line"]     = parsed["line"]
 
                 st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
-
-                # 조항 확정 버튼 영역
-                st.divider()
-                st.markdown("**✅ 이 결과로 진행하시겠습니까?**")
-                st.caption("확정하면 품의 요지·채택 조항·결재선이 사례 DB에 저장됩니다.")
-
-                adopted_article = st.text_input(
-                    "채택할 조항 (직접 입력 또는 위 결과 복사)",
-                    key="adopted_input",
-                    placeholder="예) 첨부4 4.1.1 토지/사무실 임대차계약 체결",
+                _render_confirm_section(
+                    user_name, department, approval_summary,
+                    parsed["article"], parsed["line"]
                 )
-                approval_line = st.text_input(
-                    "결재선",
-                    key="line_input",
-                    placeholder="예) 팀장 → 본부장 → 대표이사",
-                )
-
-                if st.button("💾 확정 & DB 저장", use_container_width=True):
-                    if not adopted_article or not approval_line:
-                        st.warning("채택 조항과 결재선을 입력해 주세요.")
-                    else:
-                        emb = get_embedding(approval_summary)
-                        save_case(user_name, department, approval_summary, adopted_article, approval_line, emb)
-                        st.success("✅ 사례 DB에 저장되었습니다.")
 
         elif "last_result" in st.session_state:
             st.markdown(f'<div class="result-box">{st.session_state["last_result"]}</div>', unsafe_allow_html=True)
+            _render_confirm_section(
+                st.session_state.get("last_user", ""),
+                st.session_state.get("last_dept", ""),
+                st.session_state.get("last_summary", ""),
+                st.session_state.get("last_article", ""),
+                st.session_state.get("last_line", ""),
+            )
 
 
 # =====================================================================
