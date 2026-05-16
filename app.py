@@ -294,7 +294,7 @@ st.markdown("""
     <div class="hf-logo">전</div>
     전결규정 자동응답
     <span class="mono" style="font-size:11px;color:#7a849c;font-weight:400;margin-left:6px">
-      v35차 개정 · 2026.02.11
+      35차 개정 · 개정일 2026.02.11
     </span>
   </div>
 </div>
@@ -349,15 +349,6 @@ with tab1:
                     height=72, key="inp_bg",
                 )
                 st.markdown('</div>', unsafe_allow_html=True)
-
-            st.markdown("""
-<div class="hf-info">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px">
-    <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
-  </svg>
-  입력 정보는 추천 결과와 함께 사례 DB에 저장되며, 동일 유형 안건의 추천 정확도를 높이는 데 사용됩니다.
-</div>""", unsafe_allow_html=True)
 
             run_btn = st.button(
                 "🔍  전결 조항 추천받기",
@@ -600,24 +591,6 @@ with tab1:
     <span class="mono" style="font-size:11px;color:#7a849c">지난주</span>
   </div>
 </div>
-
-<div class="hf-micro" style="margin-bottom:8px">전결규정 트리</div>
-<div class="hf-card-soft" style="margin-bottom:16px;padding:10px 14px">
-  <div class="tree-row"><span class="mono" style="font-size:11px;color:#1f4ed8;width:40px">첨부1</span><span style="font-size:13px;color:#3b4660">계정과목별 집행전결권한표</span></div>
-  <div class="tree-row"><span class="mono" style="font-size:11px;color:#1f4ed8;width:40px">첨부4</span><span style="font-size:13px;color:#3b4660">구매관리 전결권한표</span></div>
-  <div class="tree-row"><span class="mono" style="font-size:11px;color:#1f4ed8;width:40px">첨부6</span><span style="font-size:13px;color:#3b4660">계약관리 규정</span></div>
-  <div class="tree-row"><span class="mono" style="font-size:11px;color:#1f4ed8;width:40px">별표</span><span style="font-size:13px;color:#3b4660">투자사업관리규정</span></div>
-</div>
-
-<div class="hf-micro" style="margin-bottom:8px">단축키</div>
-<div class="hf-card-soft">
-  <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#3b4660">
-    <span>추천받기</span><span><span class="kbd">⌘</span> <span class="kbd">↵</span></span>
-  </div>
-  <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#3b4660;border-top:1px solid #eef1f6">
-    <span>DB 저장</span><span><span class="kbd">⌘</span> <span class="kbd">S</span></span>
-  </div>
-</div>
 """, unsafe_allow_html=True)
 
         else:
@@ -683,7 +656,7 @@ with tab2:
        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px">
     <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
   </svg>
-  제보된 안건은 익명·실명 선택 가능하며, 연말 전결규정 개편 시 기획팀이 일괄 검토합니다.
+  제보된 안건은 익명·실명 선택 가능하며, 전결규정 개편 시 기획팀이 일괄 검토합니다.
 </div>
 """, unsafe_allow_html=True)
 
