@@ -47,7 +47,7 @@ a:hover { text-decoration: underline; }
 /* ── Top Nav ────────────────────────────────────────────────────────────── */
 .nav {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 28px; height: 60px; background: var(--bg);
+  padding: 0 28px; height: 48px; background: var(--bg);
   border-bottom: 1px solid var(--hairline); flex-shrink: 0; z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 20px; color: var(--ink); letter-spacing: -0.03em; font-family: var(--ff); }
@@ -58,7 +58,7 @@ a:hover { text-decoration: underline; }
 
 /* ── Tab bar ─────────────────────────────────────────────────────────────── */
 .tab-bar { display: flex; background: var(--bg); padding: 0 28px; border-bottom: 2px solid var(--hairline); flex-shrink: 0; }
-.tab { padding: 16px 22px; font-size: 16px; font-weight: 500; color: var(--ink3); border: none; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .12s, border-color .12s; letter-spacing: -0.01em; font-family: var(--ff); }
+.tab { padding: 10px 20px; font-size: 16px; font-weight: 500; color: var(--ink3); border: none; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .12s, border-color .12s; letter-spacing: -0.01em; font-family: var(--ff); }
 .tab:hover { color: var(--ink); background: var(--page); }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
 
@@ -69,7 +69,7 @@ a:hover { text-decoration: underline; }
 /* ── Section header ─────────────────────────────────────────────────────── */
 .sec-head {
   display: flex; align-items: flex-end; justify-content: space-between;
-  padding: 18px 24px 14px; border-bottom: 1px solid var(--hairline); flex-shrink: 0;
+  padding: 10px 24px 8px; border-bottom: 1px solid var(--hairline); flex-shrink: 0;
 }
 .sec-head h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .sec-head .sub { font-size: 15px; color: var(--ink3); font-weight: 500; margin-top: 4px; }
@@ -109,7 +109,7 @@ a:hover { text-decoration: underline; }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--ink2); }
 .btn.ghost:hover { background: var(--page); }
 .btn.sm { height: 34px; padding: 0 12px; font-size: 14px; border-radius: 8px; }
-.btn.lg { height: 52px; padding: 0 24px; font-size: 17px; border-radius: 11px; }
+.btn.lg { height: 44px; padding: 0 22px; font-size: 17px; border-radius: 10px; }
 .btn.dashed { border-style: dashed; }
 
 /* ── Chips ──────────────────────────────────────────────────────────────── */
@@ -130,14 +130,14 @@ a:hover { text-decoration: underline; }
 /* ── Form elements ──────────────────────────────────────────────────────── */
 label.lbl { font-size: 15px; font-weight: 600; color: var(--ink2); margin-bottom: 8px; display: block; letter-spacing: -0.01em; }
 .input {
-  width: 100%; height: 48px; padding: 0 16px;
-  border: 1px solid var(--border); border-radius: 10px;
+  width: 100%; height: 40px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 9px;
   background: var(--bg); color: var(--ink); outline: none;
   font-family: var(--ff); font-size: 16px; letter-spacing: -0.01em;
   transition: border-color .12s, box-shadow .12s;
 }
 .input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(13,23,51,.08); }
-textarea.input { height: auto; padding: 14px 16px; line-height: 1.6; resize: none; }
+textarea.input { height: auto; padding: 10px 14px; line-height: 1.55; resize: none; }
 select.input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a849c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 
 /* ── Kbd ────────────────────────────────────────────────────────────────── */
@@ -259,9 +259,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
           </div>
           <div><span class="chip dot">사례 DB 학습 ON</span></div>
         </div>
-        <div class="scroll" style="padding:28px 32px 16px">
+        <div class="scroll" style="padding:14px 32px 10px">
           <div style="max-width:760px;margin:0 auto">
-            <div class="card" style="padding:26px 28px">
+            <div class="card" style="padding:16px 20px">
               <div class="g2">
                 <div>
                   <label class="lbl" for="inp-name">담당자명 <span class="req">*</span></label>
@@ -272,17 +272,17 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                   <input class="input" id="inp-dept" placeholder="예) 기획팀" />
                 </div>
               </div>
-              <div style="margin-top:18px">
+              <div style="margin-top:10px">
                 <label class="lbl" for="inp-summary">품의 요지 <span class="req">*</span></label>
                 <textarea class="input" id="inp-summary" rows="2" placeholder="예) 충전소 임차계약 체결, 보증금 2억원&#10;예) 노트북 5억원어치 구매 전결" style="min-height:60px;font-size:14.5px"></textarea>
                 <div class="eyebrow" style="margin-top:6px">한 줄로 요약해 주세요. 금액·대상·목적이 들어가면 추천 정확도가 올라갑니다.</div>
               </div>
-              <div style="margin-top:18px">
+              <div style="margin-top:10px">
                 <label class="lbl" for="inp-bg">배경 / 추가 설명 <span style="font-weight:400;color:var(--ink3)">(선택)</span></label>
                 <textarea class="input" id="inp-bg" rows="4" placeholder="예) 기존 계약 만료로 신규 임차 필요, 인근 부지 신규 확보" style="min-height:92px;font-size:14px"></textarea>
               </div>
               <!-- Optional context -->
-              <div id="extra-ctx" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--hairline)">
+              <div id="extra-ctx" style="margin-top:10px;padding-top:18px;border-top:1px solid var(--hairline)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                   <div class="micro">추가 컨텍스트 <span style="font-weight:400;color:var(--ink4);text-transform:none;letter-spacing:0">(있으면 더 정확해져요)</span></div>
                   <button class="btn ghost sm" onclick="toggleCtx()">접기 ▴</button>
@@ -543,7 +543,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                   <div id="res-note">—</div>
                 </div>
                 <!-- Follow-ups -->
-                <div style="display:flex;gap:6px;margin-top:18px;flex-wrap:wrap" id="followup-chips"></div>
+                <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="followup-chips"></div>
               </div>
             </div>
           </div>
@@ -613,7 +613,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
             <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="saved-chips"></div>
             <div class="g-meta" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--hairline)" id="saved-meta"></div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:18px;justify-content:center">
+          <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
             <button class="btn" onclick="showView('input')">＋ 새 안건</button>
             <button class="btn" onclick="switchTab('db')">사례 DB에서 보기 →</button>
             <button class="btn primary" onclick="copyLine()">결재선 클립보드로 복사</button>
