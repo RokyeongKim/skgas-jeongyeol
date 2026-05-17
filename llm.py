@@ -7,9 +7,13 @@ _regulation_text = None
 def load_regulation() -> str:
     global _regulation_text
     if _regulation_text is None:
-        reg_path = os.path.join(os.path.dirname(__file__), "docs", "전결규정.md")
-        with open(reg_path, "r", encoding="utf-8") as f:
-            _regulation_text = f.read()
+        env_text = os.environ.get("REGULATION_TEXT", "")
+        if env_text:
+            _regulation_text = env_text
+        else:
+            reg_path = os.path.join(os.path.dirname(__file__), "docs", "전결규정.md")
+            with open(reg_path, "r", encoding="utf-8") as f:
+                _regulation_text = f.read()
     return _regulation_text
 
 
