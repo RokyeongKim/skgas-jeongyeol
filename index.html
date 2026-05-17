@@ -201,6 +201,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
   .cols-2-380, .cols-2-420, .cols-2-360 { grid-template-columns: 1fr; }
   .col-side { display: none; }
 }
+
+/* ── Loading spinner ─────────────────────────────────────────────────────── */
+.spinner { width:36px;height:36px;border:3px solid var(--hairline);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.btn-loading { opacity:.6;pointer-events:none;cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -391,6 +396,15 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
         </div>
       </div>
     </div><!-- /view-input -->
+
+    <!-- State L: Loading -->
+    <div id="view-loading" style="flex:1;overflow:hidden;display:none;align-items:center;justify-content:center;flex-direction:column;gap:0">
+      <div style="text-align:center;padding:40px">
+        <div class="spinner"></div>
+        <div style="margin-top:20px;font-size:15px;font-weight:700;letter-spacing:-0.02em">분석 중입니다…</div>
+        <div style="margin-top:6px;font-size:13px;color:var(--ink3)">SK가스 전결규정을 기반으로 최적 결재선을 찾고 있습니다.</div>
+      </div>
+    </div>
 
     <!-- State B: Result view (hidden by default) -->
     <div id="view-result" class="cols cols-2-420" style="flex:1;overflow:hidden;display:none">
@@ -778,7 +792,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
         <div style="padding:14px 24px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--hairline);background:var(--bg);flex-wrap:wrap;flex-shrink:0">
           <div style="position:relative;width:260px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%)"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
-            <input class="input" id="db-search" placeholder="안건/조항/담당자 검색" style="padding-left:34px;height:34px" oninput="renderDBTable()" />
+            <input class="input" id="db-search" placeholder="안건/조항/담당자 검색" style="padding-left:34px;height:34px" oninput="renderDBTableRows()" />
           </div>
           <button class="btn sm">전결권자 <span style="color:var(--ink3)">전체 ▾</span></button>
           <button class="btn sm">부서 <span style="color:var(--ink3)">전체 ▾</span></button>
@@ -835,80 +849,12 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
 // State
 // ═══════════════════════════════════════════════════════════════════════════════
 let currentTab = 'recommend';
-let currentView = 'input';      // 'input' | 'result' | 'saved'
-let saveMode = 'default';       // 'default' | 'alt'
+let currentView = 'input';
+let saveMode = 'default';
 let selectedFreq = '자주';
 let selectedDBRow = null;
-let caseCounter = 421;
+let _allDBRows = [];
 
-// Simulated DB
-const DB_CASES = [];
-
-// Simulated recommendation engine
-const REC = {
-  '구매': {
-    approver: '대표이사',
-    chain: ['팀장','실장/담당','본부장','대표이사'],
-    article: '첨부4 · 1.1',
-    articleName: '구매품의 (예상금액 기준)',
-    notes: [
-      '구매품의(기본품의) 승인 후, 실제 계약 체결 시 <b>첨부4 1.4.1 구매계약체결 품의</b>도 별도 진행 — 동일 대표이사 전결.',
-      '운영예산을 재원으로 하면 <b>첨부1-2 계정과목별 집행전결권한표</b>의 구매 계정 기준도 병행 확인 필요.',
-      '투자사업 목적의 구매라면 <b>투자사업관리규정</b>을 별도로 따름.',
-    ],
-    tableRows: [
-      ['20,000천원 이하','팀장',false],
-      ['200,000천원 이하','실장/담당',false],
-      ['400,000천원 이하','본부장',false],
-      ['400,000천원 초과','대표이사',true],
-    ],
-    evidenceTitle: '1.1 구매품의',
-    evidenceSub: '첨부4 · 구매관리 전결권한표',
-    followups: ['수의계약이면 달라져?','운영예산이면?','투자사업 목적이면?','계약 체결 단계는?'],
-  },
-  '임차': {
-    approver: '본부장',
-    chain: ['팀장','실장/담당','본부장'],
-    article: '첨부4 · 1.3',
-    articleName: '임차계약 (보증금 기준)',
-    notes: [
-      '임차계약 보증금 기준: 3억원 이하 본부장, 3억원 초과 대표이사.',
-      '전대 또는 재임차 포함 여부는 별도 협의 필요.',
-    ],
-    tableRows: [
-      ['50,000천원 이하','팀장',false],
-      ['300,000천원 이하','본부장',true],
-      ['300,000천원 초과','대표이사',false],
-    ],
-    evidenceTitle: '1.3 임차계약',
-    evidenceSub: '첨부4 · 구매관리 전결권한표',
-    followups: ['보증금이 3억 초과하면?','전대 포함이면?','장기 임차(5년+)는?'],
-  },
-  '용역': {
-    approver: '본부장',
-    chain: ['팀장','실장/담당','본부장'],
-    article: '첨부4 · 1.2',
-    articleName: '용역계약 (계약금액 기준)',
-    notes: [
-      '8천만원 이하 — 본부장 전결.',
-      '단가계약·일괄발주는 연간 예상금액 기준으로 판단.',
-    ],
-    tableRows: [
-      ['20,000천원 이하','팀장',false],
-      ['80,000천원 이하','본부장',true],
-      ['80,000천원 초과','대표이사',false],
-    ],
-    evidenceTitle: '1.2 용역계약',
-    evidenceSub: '첨부4 · 구매관리 전결권한표',
-    followups: ['단가계약이면?','하도급 포함이면?','연간 총액이면?'],
-  },
-};
-
-function getRec(summary) {
-  if (summary.includes('임차') || summary.includes('임대')) return REC['임차'];
-  if (summary.includes('용역') || summary.includes('서비스') || summary.includes('공사')) return REC['용역'];
-  return REC['구매'];
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Navigation
@@ -929,9 +875,10 @@ function switchTab(tab) {
 
 function showView(view) {
   currentView = view;
-  document.getElementById('view-input').style.display = view === 'input' ? 'grid' : 'none';
-  document.getElementById('view-result').style.display = view === 'result' ? 'grid' : 'none';
-  document.getElementById('view-saved').style.display = view === 'saved' ? 'grid' : 'none';
+  document.getElementById('view-input').style.display   = view === 'input'   ? 'grid' : 'none';
+  document.getElementById('view-loading').style.display = view === 'loading'  ? 'flex' : 'none';
+  document.getElementById('view-result').style.display  = view === 'result'  ? 'grid' : 'none';
+  document.getElementById('view-saved').style.display   = view === 'saved'   ? 'grid' : 'none';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -962,110 +909,108 @@ function resetForm() {
   showView('input');
 }
 
-function submitForm() {
+async function submitForm() {
   const name    = document.getElementById('inp-name').value.trim();
   const dept    = document.getElementById('inp-dept').value.trim();
   const summary = document.getElementById('inp-summary').value.trim();
   const bg      = document.getElementById('inp-bg').value.trim();
+  const amount  = document.getElementById('inp-amount').value.trim();
 
   if (!name || !dept || !summary) {
     showToast('담당자명, 부서명, 품의 요지를 모두 입력해 주세요.');
     return;
   }
 
-  const rec = getRec(summary);
+  showView('loading');
 
-  // Populate result view
+  try {
+    const res = await fetch('/api/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, dept, summary, background: bg, amount }),
+    });
+    if (!res.ok) throw new Error('서버 오류');
+    const rec = await res.json();
+
+    window._lastRec = { name, dept, summary, amount, rec };
+    populateResult(rec, name, dept, summary, bg, amount);
+    selectSaveMode('default');
+    showView('result');
+  } catch (e) {
+    showToast('서버 연결 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    showView('input');
+  }
+}
+
+function populateResult(rec, name, dept, summary, bg, amount) {
+  const chain = rec.line ? rec.line.split(/\s*→\s*/) : (rec.approver ? [rec.approver] : ['—']);
+
   document.getElementById('result-title').textContent = summary;
   document.getElementById('result-sub').textContent = `${dept} · ${name} · 방금`;
   document.getElementById('msg-user-name').textContent = name;
   document.getElementById('msg-user-meta').textContent = `${dept} · 방금`;
-  document.getElementById('msg-summary').textContent = summary + '.';
+  document.getElementById('msg-summary').textContent = summary;
   document.getElementById('msg-bg-display').innerHTML = bg
-    ? `<span style="color:var(--ink2)">배경 — </span>${bg}`
-    : '';
+    ? `<span style="color:var(--ink2)">배경 — </span>${bg}` : '';
+  document.getElementById('msg-answer').textContent = rec.rationale || '';
 
-  // Result hero
-  document.getElementById('res-approver').textContent = rec.approver;
-  document.getElementById('rc-default-sub').textContent = `${rec.approver} 전결 그대로`;
+  document.getElementById('res-approver').textContent = rec.approver || '—';
+  document.getElementById('rc-default-sub').textContent = `${rec.approver || '—'} 전결 그대로`;
 
-  const chain = document.getElementById('res-chain');
-  chain.innerHTML = rec.chain.map((r, i) => {
-    const isLast = i === rec.chain.length - 1;
-    return `
-      <span style="padding:4px 10px;border-radius:6px;background:${isLast ? 'var(--ink)' : 'var(--page)'};color:${isLast ? '#fff' : 'var(--ink2)'};font-weight:${isLast ? 600 : 500}">${r}</span>
-      ${i < rec.chain.length - 1 ? '<span class="arr">→</span>' : ''}
-    `;
+  document.getElementById('res-chain').innerHTML = chain.map((r, i) => {
+    const isLast = i === chain.length - 1;
+    return `<span style="padding:4px 10px;border-radius:6px;background:${isLast ? 'var(--ink)' : 'var(--page)'};color:${isLast ? '#fff' : 'var(--ink2)'};font-weight:${isLast ? 600 : 500}">${r}</span>${i < chain.length - 1 ? '<span class="arr">→</span>' : ''}`;
   }).join('');
 
-  document.getElementById('res-article').textContent = rec.article;
-  document.getElementById('res-article-name').textContent = rec.articleName;
+  // article 코드와 이름 분리 (e.g. "첨부4 1.1 구매품의" → "첨부4 1.1" / "구매품의")
+  const artParts = (rec.article || '').split(' ');
+  const artCode = artParts.slice(0, 2).join(' ');
+  const artName = artParts.slice(2).join(' ');
+  document.getElementById('res-article').textContent = artCode || rec.article || '—';
+  document.getElementById('res-article-name').textContent = artName || '';
 
-  const amount = document.getElementById('inp-amount').value.trim() || '—';
   document.getElementById('res-meta-row').innerHTML = `
-    <div><span class="micro" style="margin-right:6px">금액</span>${amount !== '—' ? amount + '천원' : '미입력'}</div>
+    <div><span class="micro" style="margin-right:6px">금액</span>${amount ? amount + '천원' : '미입력'}</div>
     <div style="width:1px;background:var(--hairline)"></div>
     <div><span class="micro" style="margin-right:6px">기준</span>예상금액</div>
   `;
 
-  // Evidence
-  document.getElementById('evidence-sub').textContent = rec.evidenceSub;
-  document.getElementById('evi-title').textContent = rec.evidenceTitle;
-  document.getElementById('evi-sub').textContent = rec.evidenceSub;
+  // Alt fields 미리 채우기
+  document.getElementById('alt-article').value = rec.article || '';
+  document.getElementById('alt-line').value = rec.line || '';
 
-  const tbl = document.getElementById('evi-table');
-  tbl.innerHTML = `
-    <thead><tr><th>금액 구간</th><th style="text-align:right">전결권자</th></tr></thead>
-    <tbody>
-      ${rec.tableRows.map(([label, approver, hit]) => `
-        <tr class="${hit ? 'hit' : ''}">
-          <td>${label}${hit ? '<span style="margin-left:8px;color:var(--accent);font-size:11px">● 해당</span>' : ''}</td>
-          <td style="text-align:right">${approver}</td>
-        </tr>
-      `).join('')}
-    </tbody>
+  // Evidence 패널
+  document.getElementById('evidence-sub').textContent = rec.article || '—';
+  document.getElementById('evi-title').textContent = rec.article || '—';
+  document.getElementById('evi-sub').textContent = '전결규정 근거';
+  document.getElementById('evi-table').innerHTML = `
+    <tbody><tr><td style="padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.7">${rec.rationale || '—'}</td></tr></tbody>
   `;
 
-  const notes = document.getElementById('evi-notes');
-  notes.innerHTML = rec.notes.map((n, i) => `
-    <li style="display:flex;gap:8px">
-      <span style="width:14px;height:14px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;margin-top:2px">${i+1}</span>
-      <span>${n}</span>
-    </li>
-  `).join('');
+  const noteText = rec.note && rec.note !== '없음' ? rec.note : '';
+  document.getElementById('evi-notes').innerHTML = noteText
+    ? `<li style="display:flex;gap:8px"><span style="width:14px;height:14px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;margin-top:2px">!</span><span>${noteText}</span></li>`
+    : '<li style="color:var(--ink3);font-size:12.5px">참고사항 없음</li>';
 
-  document.getElementById('evi-similar').innerHTML = [
-    ['서버 장비 7억 구매','2025.11','대표이사'],
-    ['MacBook Pro 1.8억','2025.09','본부장'],
-    ['SW 라이선스 갱신 3천','2025.08','실장'],
-  ].map(([t,d,r]) => `
-    <div class="card-soft" style="padding:10px 12px;background:var(--bg);display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:13px;font-weight:500">${t}</div>
-        <div class="mono" style="font-size:11px;color:var(--ink3);margin-top:2px">${d}</div>
-      </div>
-      <span class="chip">${r}</span>
-    </div>
-  `).join('');
+  const similar = rec.similar || [];
+  document.getElementById('evi-similar').innerHTML = similar.length === 0
+    ? '<div style="color:var(--ink3);font-size:12.5px">저장된 유사 사례 없음</div>'
+    : similar.map(s => `
+        <div class="card-soft" style="padding:10px 12px;background:var(--bg);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:13px;font-weight:500">${s.approval_summary}</div>
+            <div class="mono" style="font-size:11px;color:var(--ink3);margin-top:2px">${s.timestamp} · 유사도 ${s.similarity}%</div>
+          </div>
+          <span class="chip">${(s.approval_line || '').split('→').pop().trim()}</span>
+        </div>`).join('');
 
-  // Notes
-  document.getElementById('res-note').innerHTML =
-    `<b style="color:var(--ink2)">참고</b> — ${rec.notes[0]} <span class="lnk">자세히 →</span>`;
+  document.getElementById('res-note').innerHTML = noteText
+    ? `<b style="color:var(--ink2)">참고</b> — ${noteText}`
+    : '전결규정에 따른 자동 추천 결과입니다. 최종 결재선은 담당자가 확인하세요.';
 
-  // Followups
-  document.getElementById('followup-chips').innerHTML = rec.followups
-    .map(q => `<span class="chip">${q}</span>`).join('');
-
-  // Alt fields pre-fill
-  document.getElementById('alt-article').value = `${rec.article} ${rec.articleName}`;
-  document.getElementById('alt-line').value = rec.chain.join(' → ');
-
-  // Reset save mode
-  selectSaveMode('default');
-  showView('result');
-
-  // Save context for DB
-  window._lastRec = { name, dept, summary, rec };
+  document.getElementById('followup-chips').innerHTML = [
+    '금액이 다르면?', '다른 부서이면?', '위임전결 가능?', '규정 예외 처리는?'
+  ].map(q => `<span class="chip" style="cursor:pointer">${q}</span>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1087,48 +1032,56 @@ function selectSaveMode(mode) {
   }
 }
 
-function confirmSave() {
+async function confirmSave() {
   const lr = window._lastRec;
   if (!lr) return;
 
-  if (saveMode === 'alt') {
-    const reason = document.getElementById('alt-reason').value.trim();
+  const isCustom = saveMode === 'alt';
+
+  if (isCustom) {
+    const reason    = document.getElementById('alt-reason').value.trim();
     const consulted = document.getElementById('alt-consulted').value.trim();
-    const altLine = document.getElementById('alt-line').value.trim();
-    if (!reason) { showToast('변경 사유를 입력해 주세요.'); return; }
+    const altLine   = document.getElementById('alt-line').value.trim();
+    if (!reason)    { showToast('변경 사유를 입력해 주세요.'); return; }
     if (!consulted) { showToast('기획팀 협의자를 입력해 주세요.'); return; }
-    if (!altLine) { showToast('실제 결재선을 입력해 주세요.'); return; }
+    if (!altLine)   { showToast('실제 결재선을 입력해 주세요.'); return; }
   }
 
-  caseCounter++;
-  const caseNo = `CASE-2026-0${caseCounter}`;
-  const isCustom = saveMode === 'alt';
-  const rec = lr.rec;
-  const finalLine = isCustom
-    ? document.getElementById('alt-line').value.trim()
-    : rec.chain.join(' → ');
-  const finalArticle = isCustom
-    ? document.getElementById('alt-article').value.trim()
-    : `${rec.article} ${rec.articleName}`;
-  const devReason = isCustom ? document.getElementById('alt-reason').value.trim() : '';
-  const consulted = isCustom ? document.getElementById('alt-consulted').value.trim() : '';
+  const finalLine    = isCustom ? document.getElementById('alt-line').value.trim()    : (lr.rec.line || '');
+  const finalArticle = isCustom ? document.getElementById('alt-article').value.trim() : (lr.rec.article || '');
+  const devReason    = isCustom ? document.getElementById('alt-reason').value.trim()  : '';
+  const consulted    = isCustom ? document.getElementById('alt-consulted').value.trim() : '';
+  const approver     = isCustom ? finalLine.split('→').pop().trim() : (lr.rec.approver || '—');
 
-  DB_CASES.unshift({
-    caseNo, title: lr.summary, dept: lr.dept, name: lr.name,
-    approver: isCustom ? finalLine.split('→').pop().trim() : rec.approver,
-    article: finalArticle, line: finalLine,
-    isCustom, devReason, consulted,
-    ts: '방금', status: isCustom ? 'review' : 'done',
-  });
+  try {
+    await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: lr.name, dept: lr.dept, summary: lr.summary,
+        article: finalArticle, line: finalLine,
+        is_custom: isCustom ? 1 : 0,
+        deviation_reason: devReason,
+        consulted_with: consulted,
+      }),
+    });
+  } catch (e) {
+    showToast('저장 중 오류가 발생했습니다.');
+    return;
+  }
 
-  // Populate saved view
+  window._savedLine    = finalLine;
+  window._savedArticle = finalArticle;
+
+  const caseNo = `CASE-${String(Date.now()).slice(-6)}`;
+
   document.getElementById('saved-case-no').textContent = caseNo;
   document.getElementById('saved-title').textContent = lr.summary;
   document.getElementById('saved-chips').innerHTML = [
     document.getElementById('inp-type').value,
-    document.getElementById('inp-amount').value ? document.getElementById('inp-amount').value + '천원' : null,
+    lr.amount ? lr.amount + '천원' : null,
     lr.dept,
-    `${isCustom ? finalLine.split('→').pop().trim() : rec.approver} 전결`,
+    `${approver} 전결`,
   ].filter(Boolean).map((c,i) => `<span class="chip ${i === 3 ? 'fill' : ''}">${c}</span>`).join('');
 
   document.getElementById('saved-meta').innerHTML = `
@@ -1140,6 +1093,7 @@ function confirmSave() {
   `;
 
   showView('saved');
+  showToast('✅ DB에 저장되었습니다.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1155,57 +1109,78 @@ function setFreq(el, val) {
   });
 }
 
-function submitGap() {
-  const name  = document.getElementById('gap-name').value.trim();
-  const dept  = document.getElementById('gap-dept').value.trim();
-  const title = document.getElementById('gap-title').value.trim();
+async function submitGap() {
+  const name   = document.getElementById('gap-name').value.trim();
+  const dept   = document.getElementById('gap-dept').value.trim();
+  const title  = document.getElementById('gap-title').value.trim();
   const reason = document.getElementById('gap-reason').value.trim();
   if (!name || !dept || !title) {
     showToast('담당자명, 부서명, 제보 내용을 모두 입력해 주세요.');
     return;
   }
-  showToast('✅ 제보가 접수되었습니다. 기획팀 검토 후 반영됩니다.');
-  document.getElementById('gap-name').value = '';
-  document.getElementById('gap-dept').value = '';
-  document.getElementById('gap-title').value = '';
-  document.getElementById('gap-reason').value = '';
-  document.getElementById('gap-ref').value = '';
+  const content = `[발생빈도: ${selectedFreq}] ${title}${reason ? ' — ' + reason : ''}`;
+  try {
+    await fetch('/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, dept, content }),
+    });
+    showToast('✅ 제보가 접수되었습니다. 기획팀 검토 후 반영됩니다.');
+    ['gap-name','gap-dept','gap-title','gap-reason','gap-ref'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  } catch (e) {
+    showToast('제보 접수 중 오류가 발생했습니다.');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DB table
 // ═══════════════════════════════════════════════════════════════════════════════
-const SAMPLE_ROWS = [
-  { caseNo:'CASE-2026-0421', title:'노트북 5억원어치 구매 전결', dept:'기획팀', name:'김노경', approver:'대표이사', article:'첨부4 · 1.1', line:'팀장 → 실장/담당 → 본부장 → 대표이사', isCustom:false, devReason:'', consulted:'', ts:'3시간 전', status:'done' },
-  { caseNo:'CASE-2026-0418', title:'신규 부지 임차 3억원', dept:'자산팀', name:'이수민', approver:'본부장', article:'첨부4 · 1.3', line:'팀장 → 실장/담당 → 본부장', isCustom:false, devReason:'', consulted:'', ts:'어제', status:'active' },
-  { caseNo:'CASE-2026-0413', title:'SW 라이선스 갱신 4천만', dept:'IT팀', name:'박지훈', approver:'실장', article:'첨부4 · 1.1', line:'팀장 → 실장', isCustom:false, devReason:'', consulted:'', ts:'어제', status:'done' },
-  { caseNo:'CASE-2026-0405', title:'용역 계약 변경 8천만', dept:'사업팀', name:'정유리', approver:'본부장', article:'첨부4 · 1.2', line:'팀장 → 실장/담당 → 본부장', isCustom:true, devReason:'위임전결 협의 완료', consulted:'김노경 팀장', ts:'3일 전', status:'review' },
-  { caseNo:'CASE-2026-0398', title:'서버 장비 7억 구매', dept:'IT팀', name:'최민호', approver:'대표이사', article:'첨부4 · 1.1', line:'팀장 → 실장/담당 → 본부장 → 대표이사', isCustom:false, devReason:'', consulted:'', ts:'지난주', status:'done' },
-  { caseNo:'CASE-2026-0382', title:'MacBook Pro 1.8억', dept:'기획팀', name:'한가은', approver:'본부장', article:'첨부4 · 1.1', line:'팀장 → 실장/담당 → 본부장', isCustom:false, devReason:'', consulted:'', ts:'지난주', status:'done' },
-  { caseNo:'CASE-2026-0376', title:'출장비 정산 규정 외 처리', dept:'기획팀', name:'김노경', approver:'—', article:'— 공백 —', line:'—', isCustom:false, devReason:'', consulted:'', ts:'2주 전', status:'gap' },
-];
-
-function getAllRows() {
-  return [...DB_CASES, ...SAMPLE_ROWS];
+async function renderDBTable() {
+  try {
+    const res = await fetch('/api/cases');
+    const data = await res.json();
+    _allDBRows = data.map((r, i) => ({
+      caseNo:   `CASE-${String(r.id).padStart(6, '0')}`,
+      title:    r.summary,
+      dept:     r.department,
+      name:     r.name,
+      approver: r.line ? r.line.split('→').pop().trim() : '—',
+      article:  r.article,
+      line:     r.line,
+      isCustom: r.is_custom,
+      devReason: r.deviation_reason,
+      consulted: r.consulted_with,
+      ts:       r.timestamp,
+      status:   r.is_custom ? 'review' : 'done',
+    }));
+  } catch (e) {
+    _allDBRows = [];
+  }
+  renderDBTableRows();
 }
 
-function renderDBTable() {
+function renderDBTableRows() {
   const q = (document.getElementById('db-search').value || '').toLowerCase();
-  const rows = getAllRows().filter(r =>
+  const rows = _allDBRows.filter(r =>
     !q || r.title.toLowerCase().includes(q) || r.dept.toLowerCase().includes(q)
       || r.name.toLowerCase().includes(q) || r.article.toLowerCase().includes(q)
       || r.caseNo.toLowerCase().includes(q)
   );
 
-  document.getElementById('db-count').textContent = `저장된 전결 추천 사례 · 총 ${rows.length + 4211}건`;
-  document.getElementById('db-pagination-info').textContent = `1–${rows.length} of ${rows.length + 4211}`;
+  document.getElementById('db-count').textContent = `저장된 전결 추천 사례 · 총 ${rows.length}건`;
+  document.getElementById('db-pagination-info').textContent = rows.length > 0 ? `1–${rows.length} of ${rows.length}` : '0건';
 
   const tbody = document.getElementById('db-tbody');
-  tbody.innerHTML = rows.map((r, i) => {
+  tbody.innerHTML = rows.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--ink3);font-size:13px">저장된 사례가 없습니다. 추천을 받고 저장해 보세요.</td></tr>`
+    : rows.map((r, i) => {
     let statusChip = '';
-    if (r.status === 'gap') statusChip = '<span class="chip gap">규정 공백</span>';
+    if (r.status === 'gap')    statusChip = '<span class="chip gap">규정 공백</span>';
     else if (r.status === 'review') statusChip = '<span class="chip review">예외 사유</span>';
-    else statusChip = '<span class="chip success">추천 일치</span>';
+    else                       statusChip = '<span class="chip success">추천 일치</span>';
 
     return `
       <tr onclick="selectDBRow(${i})" class="${selectedDBRow === i ? 'selected' : ''}">
@@ -1227,7 +1202,7 @@ function renderDBTable() {
 
 function selectDBRow(i) {
   selectedDBRow = i;
-  const rows = getAllRows();
+  const rows = _allDBRows;
   const r = rows[i];
   if (!r) return;
 
@@ -1287,11 +1262,15 @@ function selectDBRow(i) {
 // Utils
 // ═══════════════════════════════════════════════════════════════════════════════
 function copyLine() {
-  const lr = window._lastRec;
-  if (!lr) return;
-  const line = saveMode === 'alt'
-    ? document.getElementById('alt-line').value || lr.rec.chain.join(' → ')
-    : lr.rec.chain.join(' → ');
+  let line = '';
+  if (currentView === 'saved' && window._savedLine) {
+    line = window._savedLine;
+  } else if (window._lastRec) {
+    line = saveMode === 'alt'
+      ? (document.getElementById('alt-line').value || window._lastRec.rec.line || '')
+      : (window._lastRec.rec.line || '');
+  }
+  if (!line) { showToast('복사할 결재선이 없습니다.'); return; }
   navigator.clipboard.writeText(line).catch(() => {});
   showToast('결재선이 클립보드에 복사되었습니다.');
 }
@@ -1306,19 +1285,6 @@ function showToast(msg) {
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 switchTab('recommend');
-renderDBTable();
-
-// Keyboard shortcuts
-document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-    e.preventDefault();
-    if (currentTab === 'recommend' && currentView === 'input') submitForm();
-  }
-  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-    e.preventDefault();
-    if (currentTab === 'recommend' && currentView === 'result') confirmSave();
-  }
-});
 </script>
 </body>
 </html>
