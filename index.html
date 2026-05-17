@@ -289,7 +289,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                     <label class="lbl">예상금액</label>
                     <div style="position:relative">
                       <input class="input" id="inp-amount" placeholder="500,000" style="padding-right:44px" />
-                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink3)">천원</span>
+                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink3)">원</span>
                     </div>
                   </div>
                   <div>
@@ -457,7 +457,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                     </div>
                     <div style="border-left:1px solid var(--hairline);padding-left:24px">
                       <div class="micro">결재선</div>
-                      <div id="res-chain" style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:13px"></div>
+                      <div id="res-chain" style="margin-top:8px;display:flex;align-items:center;flex-wrap:nowrap;gap:3px;font-size:12px;overflow:hidden"></div>
                     </div>
                     <div style="text-align:right">
                       <div class="mono" style="font-size:11.5px;color:var(--accent);font-weight:500" id="res-article">—</div>
@@ -467,7 +467,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                   <div style="padding:14px 22px;display:flex;justify-content:space-between;align-items:center;background:var(--side)">
                     <div style="display:flex;gap:14px;font-size:12.5px;color:var(--ink2)" id="res-meta-row"></div>
                     <div style="display:flex;gap:6px">
-                      <button class="btn sm ghost">
+                      <button class="btn sm ghost" onclick="toggleEvidence(this)">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.5 0 4.76 1.02 6.4 2.66"/></svg>
                         근거 보기
                       </button>
@@ -476,6 +476,13 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
                         결재선 복사
                       </button>
                     </div>
+                  </div>
+                </div>
+                <!-- Evidence inline panel -->
+                <div id="evidence-inline" style="display:none;margin-top:12px">
+                  <div class="card" style="padding:16px 20px;border-left:3px solid var(--accent)">
+                    <div class="micro" style="margin-bottom:8px">Claude 전체 근거</div>
+                    <div id="evidence-raw" style="font-size:13px;color:var(--ink2);line-height:1.8;white-space:pre-wrap"></div>
                   </div>
                 </div>
                 <!-- Save card -->
@@ -942,6 +949,17 @@ async function submitForm() {
   }
 }
 
+function toggleEvidence(btn) {
+  const panel = document.getElementById('evidence-inline');
+  const isHidden = panel.style.display === 'none';
+  if (isHidden && window._lastRec) {
+    document.getElementById('evidence-raw').textContent = window._lastRec.rec.raw || '근거 없음';
+  }
+  panel.style.display = isHidden ? 'block' : 'none';
+  btn.style.background = isHidden ? 'var(--accent-soft)' : '';
+  btn.style.color = isHidden ? 'var(--accent)' : '';
+}
+
 function populateResult(rec, name, dept, summary, bg, amount) {
   const chain = rec.line ? rec.line.split(/\s*→\s*/) : (rec.approver ? [rec.approver] : ['—']);
 
@@ -959,7 +977,7 @@ function populateResult(rec, name, dept, summary, bg, amount) {
 
   document.getElementById('res-chain').innerHTML = chain.map((r, i) => {
     const isLast = i === chain.length - 1;
-    return `<span style="padding:4px 10px;border-radius:6px;background:${isLast ? 'var(--ink)' : 'var(--page)'};color:${isLast ? '#fff' : 'var(--ink2)'};font-weight:${isLast ? 600 : 500}">${r}</span>${i < chain.length - 1 ? '<span class="arr">→</span>' : ''}`;
+    return `<span style="padding:3px 8px;border-radius:6px;background:${isLast ? 'var(--ink)' : 'var(--page)'};color:${isLast ? '#fff' : 'var(--ink2)'};font-weight:${isLast ? 600 : 500};white-space:nowrap;flex-shrink:0">${r}</span>${i < chain.length - 1 ? '<span class="arr" style="flex-shrink:0">→</span>' : ''}`;
   }).join('');
 
   // article 코드와 이름 분리 (e.g. "첨부4 1.1 구매품의" → "첨부4 1.1" / "구매품의")
@@ -970,7 +988,7 @@ function populateResult(rec, name, dept, summary, bg, amount) {
   document.getElementById('res-article-name').textContent = artName || '';
 
   document.getElementById('res-meta-row').innerHTML = `
-    <div><span class="micro" style="margin-right:6px">금액</span>${amount ? amount + '천원' : '미입력'}</div>
+    <div><span class="micro" style="margin-right:6px">금액</span>${amount ? amount + '원' : '미입력'}</div>
     <div style="width:1px;background:var(--hairline)"></div>
     <div><span class="micro" style="margin-right:6px">기준</span>예상금액</div>
   `;
@@ -1079,7 +1097,7 @@ async function confirmSave() {
   document.getElementById('saved-title').textContent = lr.summary;
   document.getElementById('saved-chips').innerHTML = [
     document.getElementById('inp-type').value,
-    lr.amount ? lr.amount + '천원' : null,
+    lr.amount ? lr.amount + '원' : null,
     lr.dept,
     `${approver} 전결`,
   ].filter(Boolean).map((c,i) => `<span class="chip ${i === 3 ? 'fill' : ''}">${c}</span>`).join('');
