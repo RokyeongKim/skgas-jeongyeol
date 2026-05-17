@@ -34,9 +34,9 @@
   --ff:          "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --mono:        "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-html, body { height: 100%; background: var(--page); font-family: var(--ff); font-size: 14px; color: var(--ink); line-height: 1.5; letter-spacing: -0.011em; -webkit-font-smoothing: antialiased; }
+html, body { height: 100%; background: var(--page); font-family: var(--ff); font-size: 15px; color: var(--ink); line-height: 1.5; letter-spacing: -0.011em; -webkit-font-smoothing: antialiased; }
 ul { list-style: none; }
-button, select, input, textarea { font-family: var(--ff); font-size: 14px; }
+button, select, input, textarea { font-family: var(--ff); font-size: 15px; }
 a { color: var(--accent); text-decoration: none; font-weight: 500; }
 a:hover { text-decoration: underline; }
 
@@ -46,18 +46,20 @@ a:hover { text-decoration: underline; }
 /* ── Top Nav ────────────────────────────────────────────────────────────── */
 .nav {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 56px; background: var(--bg);
+  padding: 0 28px; height: 60px; background: var(--bg);
   border-bottom: 1px solid var(--hairline); flex-shrink: 0; z-index: 10;
 }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; color: var(--ink); letter-spacing: -0.02em; }
-.logo { width: 24px; height: 24px; border-radius: 7px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; letter-spacing: -0.02em; }
-.brand .ver { font-family: var(--mono); font-size: 11px; color: var(--ink3); font-weight: 400; margin-left: 6px; }
-.nav-tabs { display: flex; align-items: center; gap: 2px; margin-left: 24px; }
-.tab { padding: 8px 12px; border-radius: 7px; font-size: 13px; color: var(--ink2); font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; border: none; background: none; transition: background .12s; }
-.tab:hover { background: var(--page); }
-.tab.active { background: var(--ink); color: #fff; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 20px; color: var(--ink); letter-spacing: -0.03em; font-family: var(--ff); }
+.logo { width: 32px; height: 32px; border-radius: 9px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: -0.02em; flex-shrink: 0; }
+.brand .ver { font-family: var(--mono); font-size: 11.5px; color: var(--ink3); font-weight: 400; margin-left: 4px; }
 .nav-right { display: flex; align-items: center; gap: 10px; }
-.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+.tab-bar { display: flex; background: var(--bg); padding: 0 28px; border-bottom: 2px solid var(--hairline); flex-shrink: 0; }
+.tab { padding: 14px 20px; font-size: 14px; font-weight: 500; color: var(--ink3); border: none; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .12s, border-color .12s; letter-spacing: -0.01em; font-family: var(--ff); }
+.tab:hover { color: var(--ink); background: var(--page); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
 
 /* ── Screen container ───────────────────────────────────────────────────── */
 .screen { display: none; flex: 1; overflow: hidden; }
@@ -68,8 +70,8 @@ a:hover { text-decoration: underline; }
   display: flex; align-items: flex-end; justify-content: space-between;
   padding: 18px 24px 14px; border-bottom: 1px solid var(--hairline); flex-shrink: 0;
 }
-.sec-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
-.sec-head .sub { font-size: 12px; color: var(--ink3); font-weight: 500; margin-top: 3px; }
+.sec-head h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.sec-head .sub { font-size: 13px; color: var(--ink3); font-weight: 500; margin-top: 3px; }
 
 /* ── Two-column layout ──────────────────────────────────────────────────── */
 .cols { display: grid; flex: 1; overflow: hidden; }
@@ -213,26 +215,10 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
 
   <!-- ═══ TOP NAV ═══════════════════════════════════════════════════════════ -->
   <nav class="nav">
-    <div style="display:flex;align-items:center">
-      <div class="brand">
-        <div class="logo">전</div>
-        전결규정 자동응답
-        <span class="ver">v35차 개정 · 2026.02.11</span>
-      </div>
-      <div class="nav-tabs">
-        <button class="tab active" data-tab="recommend" onclick="switchTab('recommend')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
-          전결 조항 추천
-        </button>
-        <button class="tab" data-tab="gap" onclick="switchTab('gap')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
-          규정 공백 제보
-        </button>
-        <button class="tab" data-tab="db" onclick="switchTab('db')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>
-          사례 DB 조회
-        </button>
-      </div>
+    <div class="brand">
+      <div class="logo">전</div>
+      전결규정 자동응답
+      <span class="ver">35차 개정 · 2026.02.11</span>
     </div>
     <div class="nav-right">
       <button class="btn ghost sm">
@@ -242,6 +228,22 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
       <div class="avatar">김</div>
     </div>
   </nav>
+
+  <!-- ═══ TAB BAR ═══════════════════════════════════════════════════════════ -->
+  <div class="tab-bar">
+    <button class="tab active" data-tab="recommend" onclick="switchTab('recommend')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
+      전결 조항 추천
+    </button>
+    <button class="tab" data-tab="gap" onclick="switchTab('gap')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+      규정 공백 제보
+    </button>
+    <button class="tab" data-tab="db" onclick="switchTab('db')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>
+      사례 DB 조회
+    </button>
+  </div>
 
   <!-- ═══ SCREEN: RECOMMEND ═════════════════════════════════════════════════ -->
   <div id="screen-recommend" class="screen active">
@@ -317,18 +319,15 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
               입력 정보는 추천 결과와 함께 사례 DB에 저장되며, 향후 동일 유형 안건의 추천 정확도를 높이는 데 사용됩니다.
             </div>
-          </div>
-        </div>
-        <div class="cta-bar">
-          <div class="cta-inner">
-            <div class="eyebrow" id="field-count">필수 항목 0 / 3 입력됨</div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <button class="btn" onclick="resetForm()">초기화</button>
-              <span style="display:inline-flex;gap:3px"><kbd>⌘</kbd><kbd>↵</kbd></span>
-              <button class="btn primary lg" onclick="submitForm()" style="min-width:200px;justify-content:center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
-                전결 조항 추천받기
-              </button>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+              <div class="eyebrow" id="field-count">필수 항목 0 / 3 입력됨</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn" onclick="resetForm()">초기화</button>
+                <button class="btn primary lg" onclick="submitForm()" style="min-width:200px;justify-content:center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
+                  전결 조항 추천받기
+                </button>
+              </div>
             </div>
           </div>
         </div>
