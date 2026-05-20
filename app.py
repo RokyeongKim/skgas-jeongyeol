@@ -8,7 +8,7 @@ from db import (init_db, save_case, get_all_cases, save_report, get_all_reports,
 from llm import get_recommendation
 from search import get_embedding, find_similar_cases
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "skgas2025")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "skgas2026")
 
 
 def check_admin() -> bool:
