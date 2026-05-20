@@ -1,8 +1,35 @@
 import streamlit as st
 import re
-from db import init_db, save_case, get_all_cases, save_report, get_all_reports, update_report_status
+import os
+from datetime import datetime
+from db import (init_db, save_case, get_all_cases, save_report, get_all_reports,
+                update_report_status, update_case, delete_case, delete_report,
+                save_recent_query, get_recent_queries)
 from llm import get_recommendation
 from search import get_embedding, find_similar_cases
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "skgas2025")
+
+
+def check_admin() -> bool:
+    return st.session_state.get("is_admin", False)
+
+
+def fmt_time(ts_str: str) -> str:
+    try:
+        ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M")
+        now = datetime.now()
+        diff = now - ts
+        if diff.days == 0:
+            h = diff.seconds // 3600
+            return "방금 전" if h == 0 else f"{h}시간 전"
+        if diff.days == 1:
+            return "어제"
+        if diff.days < 7:
+            return f"{diff.days}일 전"
+        return ts_str[:10]
+    except Exception:
+        return ts_str
 
 
 def parse_recommendation(text: str) -> dict:
@@ -555,6 +582,7 @@ with tab1:
                         final_article, final_line, emb,
                         is_custom, deviation_reason, consulted_with,
                     )
+                    save_recent_query(final_article)
                     for k in list(st.session_state.keys()):
                         del st.session_state[k]
                     st.success("✅ 사례 DB에 저장됐습니다. 새 안건을 입력하세요.")
@@ -569,29 +597,30 @@ with tab1:
         has_result = "last_result" in st.session_state
 
         if not has_result:
-            # Idle: recent + tree + shortcuts
             st.markdown("""
 <div class="panel-head">
   <h3>근거 조문</h3>
   <div class="panel-sub">결과가 나오면 자동으로 표시됩니다</div>
 </div>
-
 <div class="hf-micro" style="margin-bottom:8px">최근 조회</div>
-<div class="hf-card-soft" style="margin-bottom:16px">
-  <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:500">
-    <span>첨부4 · 1.1 구매품의</span>
-    <span class="mono" style="font-size:11px;color:#7a849c">2시간 전</span>
-  </div>
-  <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:500;border-top:1px solid #eef1f6">
-    <span>첨부4 · 1.4.1 구매계약체결</span>
-    <span class="mono" style="font-size:11px;color:#7a849c">어제</span>
-  </div>
-  <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:500;border-top:1px solid #eef1f6">
-    <span>첨부1-2 계정과목별 집행전결</span>
-    <span class="mono" style="font-size:11px;color:#7a849c">지난주</span>
-  </div>
-</div>
 """, unsafe_allow_html=True)
+            recent_q = get_recent_queries(5)
+            if not recent_q:
+                st.markdown("""
+<div class="hf-card-soft" style="text-align:center;padding:20px;font-size:12.5px;color:#7a849c">
+  조회 내역이 없습니다
+</div>""", unsafe_allow_html=True)
+            else:
+                rows_html = ""
+                for i, (art, ts) in enumerate(recent_q):
+                    border = 'border-top:1px solid #eef1f6;' if i > 0 else ''
+                    rows_html += f"""
+  <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:500;{border}">
+    <span>{art}</span>
+    <span class="mono" style="font-size:11px;color:#7a849c">{fmt_time(ts)}</span>
+  </div>"""
+                st.markdown(f'<div class="hf-card-soft" style="margin-bottom:16px">{rows_html}</div>',
+                            unsafe_allow_html=True)
 
         else:
             # Evidence dock: show article + similar cases
@@ -729,6 +758,26 @@ with tab2:
 with tab3:
     st.markdown('<div class="main-panel">', unsafe_allow_html=True)
 
+    # ── 관리자 인증 ──────────────────────────────────────────────────────────
+    with st.expander("🔐 관리자 모드", expanded=False):
+        if not check_admin():
+            ap_col1, ap_col2 = st.columns([3, 1])
+            with ap_col1:
+                admin_pw_input = st.text_input("비밀번호", type="password", key="admin_pw_field",
+                                               label_visibility="collapsed", placeholder="관리자 비밀번호")
+            with ap_col2:
+                if st.button("로그인", key="admin_login_btn", use_container_width=True):
+                    if admin_pw_input == ADMIN_PASSWORD:
+                        st.session_state.is_admin = True
+                        st.rerun()
+                    else:
+                        st.error("비밀번호가 올바르지 않습니다.")
+        else:
+            st.success("✅ 관리자 모드 활성화 — 수정·삭제 권한이 활성화되었습니다.")
+            if st.button("로그아웃", key="admin_logout_btn"):
+                st.session_state.is_admin = False
+                st.rerun()
+
     cases = get_all_cases()
 
     st.markdown(f"""
@@ -747,39 +796,115 @@ with tab3:
         else:
             for case in cases:
                 c_id, ts, name, dept, summary, article, line, _, is_custom, dev_reason, consulted = case
-                badge = ' <span class="hf-chip hf-chip-warn" style="font-size:11px">⚠ 변경적용</span>' if is_custom else ' <span class="hf-chip hf-chip-success" style="font-size:11px">추천 일치</span>'
                 label = f"[{ts}] {dept} · {summary[:45]}{'…' if len(summary)>45 else ''}"
                 if is_custom:
                     label += " ⚠️ 변경적용"
-                with st.expander(label):
-                    ec1, ec2 = st.columns(2)
-                    with ec1:
-                        st.markdown(f"**담당자** — {name}")
-                        st.markdown(f"**부서** — {dept}")
-                        st.markdown(f"**품의 요지** — {summary}")
-                    with ec2:
-                        st.markdown(f"**채택 조항** — {article}")
-                        st.markdown(f"**결재선** — {line}")
-                    if is_custom:
-                        st.markdown("---")
-                        st.markdown(f"⚠️ **변경 사유** — {dev_reason}")
-                        st.markdown(f"👤 **기획팀 협의자** — {consulted}")
+
+                is_editing  = st.session_state.get(f"editing_{c_id}", False)
+                has_confirm = st.session_state.get(f"confirm_del_{c_id}", False)
+
+                with st.expander(label, expanded=is_editing or has_confirm):
+                    if is_editing and check_admin():
+                        # ── 수정 폼 ──────────────────────────────────────
+                        st.markdown("**✏️ 내용 수정**")
+                        e_summary = st.text_area("품의 요지", value=summary,   key=f"e_sum_{c_id}", height=80)
+                        ee1, ee2  = st.columns(2)
+                        with ee1:
+                            e_article = st.text_input("채택 조항", value=article, key=f"e_art_{c_id}")
+                        with ee2:
+                            e_line    = st.text_input("결재선",    value=line,    key=f"e_line_{c_id}")
+                        e_custom = st.checkbox("변경 적용", value=bool(is_custom), key=f"e_cust_{c_id}")
+                        if e_custom:
+                            e_dev    = st.text_area("변경 사유",   value=dev_reason, key=f"e_dev_{c_id}",    height=60)
+                            e_consult= st.text_input("기획팀 협의자", value=consulted, key=f"e_con_{c_id}")
+                        else:
+                            e_dev, e_consult = "", ""
+                        sc1, sc2 = st.columns(2)
+                        with sc1:
+                            if st.button("💾 저장", key=f"save_edit_{c_id}", type="primary", use_container_width=True):
+                                update_case(c_id, e_summary, e_article, e_line,
+                                            int(e_custom), e_dev, e_consult)
+                                st.session_state[f"editing_{c_id}"] = False
+                                st.rerun()
+                        with sc2:
+                            if st.button("취소", key=f"cancel_edit_{c_id}", use_container_width=True):
+                                st.session_state[f"editing_{c_id}"] = False
+                                st.rerun()
+                    else:
+                        # ── 일반 보기 ────────────────────────────────────
+                        ec1, ec2 = st.columns(2)
+                        with ec1:
+                            st.markdown(f"**담당자** — {name}")
+                            st.markdown(f"**부서** — {dept}")
+                            st.markdown(f"**품의 요지** — {summary}")
+                        with ec2:
+                            st.markdown(f"**채택 조항** — {article}")
+                            st.markdown(f"**결재선** — {line}")
+                        if is_custom:
+                            st.markdown("---")
+                            st.markdown(f"⚠️ **변경 사유** — {dev_reason}")
+                            st.markdown(f"👤 **기획팀 협의자** — {consulted}")
+
+                        if check_admin():
+                            st.markdown("---")
+                            ab1, ab2 = st.columns(2)
+                            with ab1:
+                                if st.button("✏️ 수정", key=f"edit_btn_{c_id}", use_container_width=True):
+                                    st.session_state[f"editing_{c_id}"] = True
+                                    st.rerun()
+                            with ab2:
+                                if st.button("🗑️ 삭제", key=f"del_btn_{c_id}", use_container_width=True):
+                                    st.session_state[f"confirm_del_{c_id}"] = True
+                                    st.rerun()
+
+                        if has_confirm and check_admin():
+                            st.warning("⚠️ 이 사례를 삭제하면 복구할 수 없습니다. 계속하시겠습니까?")
+                            dc1, dc2 = st.columns(2)
+                            with dc1:
+                                if st.button("확인 — 삭제", key=f"del_yes_{c_id}",
+                                             type="primary", use_container_width=True):
+                                    delete_case(c_id)
+                                    st.session_state.pop(f"confirm_del_{c_id}", None)
+                                    st.rerun()
+                            with dc2:
+                                if st.button("취소", key=f"del_no_{c_id}", use_container_width=True):
+                                    st.session_state.pop(f"confirm_del_{c_id}", None)
+                                    st.rerun()
 
     with sub2:
-        reports = get_all_reports()
-        if not reports:
+        reports_all = get_all_reports()
+        if not reports_all:
             st.info("접수된 제보가 없습니다.")
         else:
-            for rep in reports:
+            for rep in reports_all:
                 r_id, ts, name, dept, content, status = rep
                 status_label = "✅ 처리완료" if status == "done" else "⏳ 검토대기"
-                with st.expander(f"[{ts}] {dept} · {status_label}"):
+                r_has_confirm = st.session_state.get(f"rdel_confirm_{r_id}", False)
+                with st.expander(f"[{ts}] {dept} · {name} · {status_label}", expanded=r_has_confirm):
                     st.markdown(f"**담당자** — {name}")
                     st.markdown(f"**부서** — {dept}")
                     st.markdown(f"**제보 내용** — {content}")
                     if status != "done":
-                        if st.button("처리완료 표시", key=f"done2_{r_id}"):
+                        if st.button("✅ 처리완료 표시", key=f"done2_{r_id}"):
                             update_report_status(r_id, "done")
                             st.rerun()
+                    if check_admin():
+                        st.markdown("---")
+                        if st.button("🗑️ 삭제", key=f"rdel_btn_{r_id}", use_container_width=False):
+                            st.session_state[f"rdel_confirm_{r_id}"] = True
+                            st.rerun()
+                    if r_has_confirm and check_admin():
+                        st.warning("⚠️ 이 제보를 삭제하면 복구할 수 없습니다.")
+                        rc1, rc2 = st.columns(2)
+                        with rc1:
+                            if st.button("확인 — 삭제", key=f"rdel_yes_{r_id}",
+                                         type="primary", use_container_width=True):
+                                delete_report(r_id)
+                                st.session_state.pop(f"rdel_confirm_{r_id}", None)
+                                st.rerun()
+                        with rc2:
+                            if st.button("취소", key=f"rdel_no_{r_id}", use_container_width=True):
+                                st.session_state.pop(f"rdel_confirm_{r_id}", None)
+                                st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)

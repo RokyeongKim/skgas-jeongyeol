@@ -44,6 +44,13 @@ def init_db():
             status TEXT DEFAULT 'pending'
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS recent_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            article TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -105,3 +112,66 @@ def update_report_status(report_id, status):
     c.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
     conn.commit()
     conn.close()
+
+
+def update_case(case_id, approval_summary, adopted_article, approval_line,
+                is_custom, deviation_reason, consulted_with):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE cases SET
+            approval_summary = ?,
+            adopted_article = ?,
+            approval_line = ?,
+            is_custom = ?,
+            deviation_reason = ?,
+            consulted_with = ?
+        WHERE id = ?
+    """, (approval_summary, adopted_article, approval_line,
+          is_custom, deviation_reason, consulted_with, case_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_case(case_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+    conn.commit()
+    conn.close()
+
+
+def delete_report(report_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+    conn.commit()
+    conn.close()
+
+
+def save_recent_query(article: str):
+    if not article:
+        return
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO recent_queries (timestamp, article) VALUES (?, ?)",
+              (datetime.now().strftime("%Y-%m-%d %H:%M"), article))
+    c.execute("""
+        DELETE FROM recent_queries WHERE id NOT IN (
+            SELECT id FROM recent_queries ORDER BY timestamp DESC LIMIT 10
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def get_recent_queries(limit: int = 5):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    try:
+        c.execute("SELECT article, timestamp FROM recent_queries ORDER BY timestamp DESC LIMIT ?", (limit,))
+        rows = c.fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return rows
