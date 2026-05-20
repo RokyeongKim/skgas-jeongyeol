@@ -149,6 +149,14 @@ def delete_report(report_id):
     conn.close()
 
 
+def delete_all_reports():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM reports")
+    conn.commit()
+    conn.close()
+
+
 def save_recent_query(article: str):
     if not article:
         return

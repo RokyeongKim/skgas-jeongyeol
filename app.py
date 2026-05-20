@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from db import (init_db, save_case, get_all_cases, save_report, get_all_reports,
                 update_report_status, update_case, delete_case, delete_report,
-                save_recent_query, get_recent_queries)
+                delete_all_reports, save_recent_query, get_recent_queries)
 from llm import get_recommendation
 from search import get_embedding, find_similar_cases
 
@@ -774,9 +774,28 @@ with tab3:
                         st.error("비밀번호가 올바르지 않습니다.")
         else:
             st.success("✅ 관리자 모드 활성화 — 수정·삭제 권한이 활성화되었습니다.")
-            if st.button("로그아웃", key="admin_logout_btn"):
-                st.session_state.is_admin = False
-                st.rerun()
+            adm1, adm2 = st.columns(2)
+            with adm1:
+                if st.button("로그아웃", key="admin_logout_btn", use_container_width=True):
+                    st.session_state.is_admin = False
+                    st.rerun()
+            with adm2:
+                if st.button("🗑️ 제보 전체 삭제", key="del_all_reports_btn", use_container_width=True):
+                    st.session_state.confirm_del_all_reports = True
+                    st.rerun()
+            if st.session_state.get("confirm_del_all_reports", False):
+                st.warning("⚠️ 누적된 제보를 **전부** 삭제합니다. 복구 불가. 계속하시겠습니까?")
+                ca1, ca2 = st.columns(2)
+                with ca1:
+                    if st.button("확인 — 전체 삭제", key="del_all_yes",
+                                 type="primary", use_container_width=True):
+                        delete_all_reports()
+                        st.session_state.confirm_del_all_reports = False
+                        st.rerun()
+                with ca2:
+                    if st.button("취소", key="del_all_no", use_container_width=True):
+                        st.session_state.confirm_del_all_reports = False
+                        st.rerun()
 
     cases = get_all_cases()
 
