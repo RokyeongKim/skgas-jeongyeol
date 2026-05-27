@@ -1,80 +1,135 @@
-import sqlite3
-import json
 import os
+import json
 from datetime import datetime
 
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+
+USE_PG = bool(DATABASE_URL)
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "cases.db")
+PH = '%s' if USE_PG else '?'
+
+
+def _get_conn():
+    if USE_PG:
+        import psycopg2
+        return psycopg2.connect(DATABASE_URL)
+    import sqlite3
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    return sqlite3.connect(DB_PATH)
 
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS cases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            user_name TEXT NOT NULL,
-            department TEXT NOT NULL,
-            approval_summary TEXT NOT NULL,
-            adopted_article TEXT NOT NULL,
-            approval_line TEXT NOT NULL,
-            embedding TEXT,
-            is_custom INTEGER DEFAULT 0,
-            deviation_reason TEXT DEFAULT '',
-            consulted_with TEXT DEFAULT ''
-        )
-    """)
-    # 기존 DB 마이그레이션 (컬럼 없을 경우에만 추가)
-    existing = {row[1] for row in c.execute("PRAGMA table_info(cases)").fetchall()}
-    for col, definition in [
-        ("is_custom", "INTEGER DEFAULT 0"),
-        ("deviation_reason", "TEXT DEFAULT ''"),
-        ("consulted_with", "TEXT DEFAULT ''"),
-    ]:
-        if col not in existing:
-            c.execute(f"ALTER TABLE cases ADD COLUMN {col} {definition}")
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            user_name TEXT NOT NULL,
-            department TEXT NOT NULL,
-            content TEXT NOT NULL,
-            status TEXT DEFAULT 'pending'
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS recent_queries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            article TEXT NOT NULL
-        )
-    """)
+    if USE_PG:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS cases (
+                id SERIAL PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                department TEXT NOT NULL,
+                approval_summary TEXT NOT NULL,
+                adopted_article TEXT NOT NULL,
+                approval_line TEXT NOT NULL,
+                embedding TEXT,
+                is_custom INTEGER DEFAULT 0,
+                deviation_reason TEXT DEFAULT '',
+                consulted_with TEXT DEFAULT ''
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id SERIAL PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                department TEXT NOT NULL,
+                content TEXT NOT NULL,
+                status TEXT DEFAULT 'pending'
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS recent_queries (
+                id SERIAL PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                article TEXT NOT NULL
+            )
+        """)
+    else:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS cases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                department TEXT NOT NULL,
+                approval_summary TEXT NOT NULL,
+                adopted_article TEXT NOT NULL,
+                approval_line TEXT NOT NULL,
+                embedding TEXT,
+                is_custom INTEGER DEFAULT 0,
+                deviation_reason TEXT DEFAULT '',
+                consulted_with TEXT DEFAULT ''
+            )
+        """)
+        existing = {row[1] for row in c.execute("PRAGMA table_info(cases)").fetchall()}
+        for col, definition in [
+            ("is_custom", "INTEGER DEFAULT 0"),
+            ("deviation_reason", "TEXT DEFAULT ''"),
+            ("consulted_with", "TEXT DEFAULT ''"),
+        ]:
+            if col not in existing:
+                c.execute(f"ALTER TABLE cases ADD COLUMN {col} {definition}")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                department TEXT NOT NULL,
+                content TEXT NOT NULL,
+                status TEXT DEFAULT 'pending'
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS recent_queries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                article TEXT NOT NULL
+            )
+        """)
     conn.commit()
     conn.close()
 
 
 def save_case(user_name, department, approval_summary, adopted_article, approval_line,
               embedding=None, is_custom=0, deviation_reason="", consulted_with=""):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("""
-        INSERT INTO cases (timestamp, user_name, department, approval_summary, adopted_article,
-                           approval_line, embedding, is_custom, deviation_reason, consulted_with)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.now().strftime("%Y-%m-%d %H:%M"),
-        user_name, department, approval_summary, adopted_article, approval_line,
-        json.dumps(embedding) if embedding else None,
-        is_custom, deviation_reason, consulted_with,
-    ))
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    emb_str = json.dumps(embedding) if embedding else None
+    if USE_PG:
+        c.execute("""
+            INSERT INTO cases (timestamp, user_name, department, approval_summary, adopted_article,
+                               approval_line, embedding, is_custom, deviation_reason, consulted_with)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (ts, user_name, department, approval_summary, adopted_article, approval_line,
+              emb_str, is_custom, deviation_reason, consulted_with))
+        case_id = c.fetchone()[0]
+    else:
+        c.execute("""
+            INSERT INTO cases (timestamp, user_name, department, approval_summary, adopted_article,
+                               approval_line, embedding, is_custom, deviation_reason, consulted_with)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ts, user_name, department, approval_summary, adopted_article, approval_line,
+              emb_str, is_custom, deviation_reason, consulted_with))
+        case_id = c.lastrowid
     conn.commit()
     conn.close()
+    return case_id
 
 
 def get_all_cases():
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
     c.execute("""
         SELECT id, timestamp, user_name, department, approval_summary, adopted_article,
@@ -87,18 +142,18 @@ def get_all_cases():
 
 
 def save_report(user_name, department, content):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("""
-        INSERT INTO reports (timestamp, user_name, department, content)
-        VALUES (?, ?, ?, ?)
-    """, (datetime.now().strftime("%Y-%m-%d %H:%M"), user_name, department, content))
+    c.execute(
+        f"INSERT INTO reports (timestamp, user_name, department, content) VALUES ({PH}, {PH}, {PH}, {PH})",
+        (datetime.now().strftime("%Y-%m-%d %H:%M"), user_name, department, content)
+    )
     conn.commit()
     conn.close()
 
 
 def get_all_reports():
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
     c.execute("SELECT id, timestamp, user_name, department, content, status FROM reports ORDER BY timestamp DESC")
     rows = c.fetchall()
@@ -107,26 +162,26 @@ def get_all_reports():
 
 
 def update_report_status(report_id, status):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
+    c.execute(f"UPDATE reports SET status = {PH} WHERE id = {PH}", (status, report_id))
     conn.commit()
     conn.close()
 
 
 def update_case(case_id, approval_summary, adopted_article, approval_line,
                 is_custom, deviation_reason, consulted_with):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("""
+    c.execute(f"""
         UPDATE cases SET
-            approval_summary = ?,
-            adopted_article = ?,
-            approval_line = ?,
-            is_custom = ?,
-            deviation_reason = ?,
-            consulted_with = ?
-        WHERE id = ?
+            approval_summary = {PH},
+            adopted_article = {PH},
+            approval_line = {PH},
+            is_custom = {PH},
+            deviation_reason = {PH},
+            consulted_with = {PH}
+        WHERE id = {PH}
     """, (approval_summary, adopted_article, approval_line,
           is_custom, deviation_reason, consulted_with, case_id))
     conn.commit()
@@ -134,23 +189,23 @@ def update_case(case_id, approval_summary, adopted_article, approval_line,
 
 
 def delete_case(case_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+    c.execute(f"DELETE FROM cases WHERE id = {PH}", (case_id,))
     conn.commit()
     conn.close()
 
 
 def delete_report(report_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+    c.execute(f"DELETE FROM reports WHERE id = {PH}", (report_id,))
     conn.commit()
     conn.close()
 
 
 def delete_all_reports():
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
     c.execute("DELETE FROM reports")
     conn.commit()
@@ -160,9 +215,9 @@ def delete_all_reports():
 def save_recent_query(article: str):
     if not article:
         return
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
-    c.execute("INSERT INTO recent_queries (timestamp, article) VALUES (?, ?)",
+    c.execute(f"INSERT INTO recent_queries (timestamp, article) VALUES ({PH}, {PH})",
               (datetime.now().strftime("%Y-%m-%d %H:%M"), article))
     c.execute("""
         DELETE FROM recent_queries WHERE id NOT IN (
@@ -174,10 +229,10 @@ def save_recent_query(article: str):
 
 
 def get_recent_queries(limit: int = 5):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     c = conn.cursor()
     try:
-        c.execute("SELECT article, timestamp FROM recent_queries ORDER BY timestamp DESC LIMIT ?", (limit,))
+        c.execute(f"SELECT article, timestamp FROM recent_queries ORDER BY timestamp DESC LIMIT {PH}", (limit,))
         rows = c.fetchall()
     except Exception:
         rows = []

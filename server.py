@@ -1,13 +1,15 @@
 import os
 import re
 from flask import Flask, request, jsonify, send_from_directory
-from db import init_db, save_case, get_all_cases, save_report, get_all_reports
+from db import (init_db, save_case, get_all_cases, save_report, get_all_reports,
+                update_case, delete_case, delete_report, save_recent_query, get_recent_queries)
 from llm import get_recommendation
 from search import get_embedding, find_similar_cases
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-
 init_db()
+
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
 
 def parse_recommendation(text: str) -> dict:
@@ -26,6 +28,12 @@ def parse_recommendation(text: str) -> dict:
     }
 
 
+def check_admin():
+    if not ADMIN_PASSWORD:
+        return True
+    return request.headers.get('X-Admin-Password', '') == ADMIN_PASSWORD
+
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
@@ -42,6 +50,9 @@ def recommend():
     raw = get_recommendation(summary, dept, bg)
     rec = parse_recommendation(raw)
 
+    if rec.get('article'):
+        save_recent_query(rec['article'])
+
     all_cases = get_all_cases()
     similar   = find_similar_cases(summary, all_cases)
 
@@ -52,7 +63,7 @@ def recommend():
 def save():
     data = request.json or {}
     embedding = get_embedding(data.get('summary', ''))
-    save_case(
+    case_id = save_case(
         user_name=data.get('name', ''),
         department=data.get('dept', ''),
         approval_summary=data.get('summary', ''),
@@ -63,7 +74,7 @@ def save():
         deviation_reason=data.get('deviation_reason', ''),
         consulted_with=data.get('consulted_with', ''),
     )
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "id": case_id})
 
 
 @app.route('/api/cases', methods=['GET'])
@@ -87,6 +98,31 @@ def cases():
     return jsonify(result)
 
 
+@app.route('/api/cases/<int:case_id>', methods=['PATCH'])
+def update_case_route(case_id):
+    if not check_admin():
+        return jsonify({"error": "관리자 권한이 필요합니다."}), 403
+    data = request.json or {}
+    update_case(
+        case_id=case_id,
+        approval_summary=data.get('summary', ''),
+        adopted_article=data.get('article', ''),
+        approval_line=data.get('line', ''),
+        is_custom=data.get('is_custom', 0),
+        deviation_reason=data.get('deviation_reason', ''),
+        consulted_with=data.get('consulted_with', ''),
+    )
+    return jsonify({"ok": True})
+
+
+@app.route('/api/cases/<int:case_id>', methods=['DELETE'])
+def delete_case_route(case_id):
+    if not check_admin():
+        return jsonify({"error": "관리자 권한이 필요합니다."}), 403
+    delete_case(case_id)
+    return jsonify({"ok": True})
+
+
 @app.route('/api/report', methods=['POST'])
 def report():
     data = request.json or {}
@@ -96,6 +132,49 @@ def report():
         content=data.get('content', ''),
     )
     return jsonify({"ok": True})
+
+
+@app.route('/api/reports', methods=['GET'])
+def get_reports():
+    rows = get_all_reports()
+    result = []
+    for r in rows:
+        r_id, ts, name, dept, content, status = r
+        result.append({
+            "id": r_id,
+            "timestamp": ts,
+            "name": name,
+            "department": dept,
+            "content": content,
+            "status": status,
+        })
+    return jsonify(result)
+
+
+@app.route('/api/reports/<int:report_id>', methods=['DELETE'])
+def delete_report_route(report_id):
+    if not check_admin():
+        return jsonify({"error": "관리자 권한이 필요합니다."}), 403
+    delete_report(report_id)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/recent_queries', methods=['GET'])
+def recent_queries():
+    rows = get_recent_queries(5)
+    result = [{"article": article, "timestamp": ts} for article, ts in rows]
+    return jsonify(result)
+
+
+@app.route('/api/admin/verify', methods=['POST'])
+def verify_admin():
+    data = request.json or {}
+    password = data.get('password', '')
+    if not ADMIN_PASSWORD:
+        return jsonify({"ok": True})
+    if password == ADMIN_PASSWORD:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "비밀번호가 올바르지 않습니다."}), 401
 
 
 if __name__ == '__main__':
