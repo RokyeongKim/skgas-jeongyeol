@@ -14,7 +14,7 @@ USE_PG     = bool(DATABASE_URL)
 USE_GIST   = bool(GITHUB_TOKEN) and not USE_PG
 USE_SQLITE = not USE_PG and not USE_GIST
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "cases.db")
+DB_PATH = '/tmp/cases.db'
 PH = '%s' if USE_PG else '?'
 
 # ─── GitHub Gist backend ──────────────────────────────────────────────────────
